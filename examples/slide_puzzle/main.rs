@@ -185,7 +185,7 @@ impl AppState {
 #[cfg_attr(feature = "i-slint-backend-mcu", i_slint_backend_mcu::entry)]
 fn main() -> ! {
     #[cfg(feature = "i-slint-backend-mcu")]
-    i_slint_backend_mcu::init_board();
+    i_slint_backend_mcu::init();
 
     // This provides better error messages in debug mode.
     // It's disabled in release mode so it doesn't bloat up the file size.
