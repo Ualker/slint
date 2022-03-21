@@ -8,7 +8,7 @@ use crossterm::cursor::MoveTo;
 use crossterm::event::{MouseButton, MouseEventKind};
 use crossterm::style::{style, Stylize};
 use crossterm::{ExecutableCommand, QueueableCommand};
-use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
+use embedded_graphics::pixelcolor::RgbColor;
 use i_slint_core::input::MouseEvent;
 use i_slint_core::items::PointerEventButton;
 
@@ -17,21 +17,21 @@ use crate::Devices;
 // Copyright © SixtyFPS GmbH <info@sixtyfps.io>
 // SPDX-License-Identifier: (GPL-3.0-only OR LicenseRef-SixtyFPS-commercial)
 
-pub fn init() -> impl Devices {
+pub fn init() {
     std::io::stdout().execute(crossterm::terminal::EnterAlternateScreen).unwrap();
     std::io::stdout().execute(crossterm::event::EnableMouseCapture).unwrap();
     crossterm::terminal::enable_raw_mode().unwrap();
-    TerminalDevices {
+    crate::init_with_display(TerminalDevices {
         frame_buffer: Default::default(),
         density: std::env::var("SLINT_TERMINAL_DENSITY")
             .ok()
             .and_then(|x| x.parse().ok())
             .unwrap_or(2),
-    }
+    });
 }
 
 struct TerminalDevices {
-    frame_buffer: Vec<Rgb888>,
+    frame_buffer: Vec<super::TargetPixel>,
     /// the amount of pixel per character
     density: u8,
 }
@@ -42,14 +42,14 @@ impl Devices for TerminalDevices {
         euclid::size2(w, h * self.density as u16).cast()
     }
 
-    fn fill_region(&mut self, region: PhysicalRect, pixels: &[Rgb888]) {
+    fn fill_region(&mut self, region: PhysicalRect, pixels: &[super::TargetPixel]) {
         let mut stdout = std::io::stdout();
         let w = region.width();
 
         if self.density > 1 {
             let a_size = self.screen_size().to_usize();
             if a_size.width * a_size.height > self.frame_buffer.len() {
-                self.frame_buffer.resize(a_size.width * a_size.height, Rgb888::BLACK)
+                self.frame_buffer.resize(a_size.width * a_size.height, super::TargetPixel::BLACK);
             }
 
             for (it, pix) in pixels.iter().copied().enumerate() {
@@ -145,7 +145,8 @@ impl Devices for TerminalDevices {
     }
 }
 
-fn map_color(pix: Rgb888) -> crossterm::style::Color {
+fn map_color(pix: super::TargetPixel) -> crossterm::style::Color {
+    let pix = embedded_graphics::pixelcolor::Rgb888::from(pix);
     crossterm::style::Color::Rgb { r: pix.r(), g: pix.g(), b: pix.b() }
 }
 
