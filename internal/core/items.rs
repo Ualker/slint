@@ -304,18 +304,6 @@ impl ItemRc {
         self.component.clone()
     }
 
-    /// Returns the number of child items for this item. Returns None if
-    /// the number is dynamically determined.
-    /// TODO: Remove the option when the Subtree trait exists and allows querying
-    pub fn children_count(&self) -> Option<u32> {
-        let comp_ref_pin = vtable::VRc::borrow_pin(&self.component);
-        let item_tree = comp_ref_pin.as_ref().get_item_tree();
-        match item_tree.as_slice()[self.index] {
-            crate::item_tree::ItemTreeNode::Item { children_count, .. } => Some(children_count),
-            crate::item_tree::ItemTreeNode::DynamicTree { .. } => None,
-        }
-    }
-
     fn find_child(
         &self,
         child_access: &dyn Fn(&crate::item_tree::ComponentItemTree, usize) -> Option<usize>,
@@ -1164,22 +1152,18 @@ impl Opacity {
         if opacity == 1.0 {
             return false;
         }
-        let component_rc = self_rc.component();
-        let component_ref = vtable::VRc::borrow_pin(&component_rc);
-        let self_index = self_rc.index();
-        // TODO: use first_child() once it exists
-        let item_tree = component_ref.as_ref().get_item_tree();
-        let target_item_index = match item_tree.as_slice()[self_index] {
-            crate::item_tree::ItemTreeNode::Item { children_count, children_index, .. }
-                if children_count == 1 =>
-            {
-                children_index as usize
-            }
-            _ => return true, // Dynamic tree or multiple children -> need layer
+
+        let opacity_child = match self_rc.first_child() {
+            Some(first_child) => first_child,
+            None => return false, // No children? Nothing to be done then
         };
-        let target_item = ItemRc::new(component_rc.clone(), target_item_index);
-        // any children? Then we need a layer
-        target_item.children_count() != Some(0)
+
+        if opacity_child.next_sibling().is_some() {
+            return true; // If the opacity item has more than one child, then we need a layer
+        }
+
+        // Any children? Then we need a layer
+        opacity_child.first_child().is_some()
     }
 }
 
